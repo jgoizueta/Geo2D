@@ -1,0 +1,10 @@
+= Geo2D
+
+Basic planar geometry functions, dealing with vectors, points, lines and line-strings.
+
+These are some functions required by a GIS project I'm woking on.
+
+= TODO
+
+* Tests
+* Gemspec, Jeweller
