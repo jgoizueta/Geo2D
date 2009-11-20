@@ -402,10 +402,10 @@ module Geo2D
         sweep = 0.0 unless sweep.kind_of?(Numeric)
         if i>0 && l<sweep
           a = 0.5*(segment(i-1).angle+segment(i).angle) + Math::PI/2
-          @vertices[i] + separation*Vector(Math.cos(a), Math.sin(a))
+          @vertices[i] + separation*Geo2D.Vector(Math.cos(a), Math.sin(a))
         elsif i<(n_segments-1) && l>=(segment_length(i)-sweep)
           a = 0.5*(segment(i).angle+segment(i+1).angle) + Math::PI/2
-          @vertices[i+1] + separation*Vector(Math.cos(a), Math.sin(a))
+          @vertices[i+1] + separation*Geo2D.Vector(Math.cos(a), Math.sin(a))
         else
           segment(i).interpolate_point(l, separation)
         end
