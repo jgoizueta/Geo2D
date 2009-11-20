@@ -21,7 +21,9 @@ Gem::Specification.new do |s|
      ".gitignore",
      "LICENSE",
      "README.rdoc",
+     "Rakefile",
      "VERSION",
+     "geo2d.gemspec",
      "lib/geo2d.rb",
      "test/helper.rb",
      "test/test_geo2d.rb"
