@@ -1,10 +1,6 @@
-require 'rubygems'
-require 'shoulda'
-require 'test/unit'
-require File.expand_path(File.join(File.dirname(__FILE__),'/../lib/geo2d'))
+require 'helper'
 
-
-class TestGeo < Test::Unit::TestCase
+class TestGeo2d < Test::Unit::TestCase
   include Geo2D
   context "A Vector" do
     setup do
