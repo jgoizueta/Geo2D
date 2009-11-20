@@ -24,12 +24,12 @@ module Geo2D
     end
     
     def +(other)
-      other = Vector(other)
+      other = Geo2D.Vector(other)
       Vector.new(self.x+other.x, self.y+other.y)
     end
     
     def -(other)
-      other = Vector(other)
+      other = Geo2D.Vector(other)
       Vector.new(self.x-other.x, self.y-other.y)
     end
     
