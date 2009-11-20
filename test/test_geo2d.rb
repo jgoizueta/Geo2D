@@ -47,5 +47,56 @@ class TestGeo2d < Test::Unit::TestCase
       assert [10,20] == @vector.to_a
     end
   end
+  
+  context "Given a line segment" do
+    
+    setup do
+      @seg = LineSegment([10,20],[78,57])
+    end
+    
+    context "And some points" do
+
+      setup do
+        @pnts = [[30,40],[10,20],[78,57],[0,0],[-1,10],[20,30],[0.5*(10+20),0.5*(78+57)]].map{|x,y| Point(x,y)}
+      end
+    
+      should  "reference the points in the line consistently" do        
+        seg_max = @seg.points.map{|p| p.length}.max
+        @pnts.each do |pnt|
+          l,d = @seg.locate_point(pnt)
+          pnt2 = @seg.interpolate_point(l,d)
+          tolerance = [pnt.modulus, seg_max].max * Float::EPSILON * 2
+          assert (pnt2-pnt).length < tolerance, "Point #{pnt} yields #{pnt2} [#{(pnt2-pnt).length}  / #{tolerance}]"
+        end
+      end
+      
+    end
+  end
+
+  context "Given a line string" do
+    
+    setup do
+      @seg = Line([10,20],[78,57],[30,50],[110,60],[100,30])
+    end
+    
+    context "And some points" do
+
+      setup do
+        @pnts = [[30,40],[10,20],[78,57],[0,0],[-1,10],[20,30],[0.5*(10+20),0.5*(78+57)]].map{|x,y| Point(x,y)}
+      end
+    
+      should  "reference the points in the line consistently" do        
+        seg_max = @seg.points.map{|p| p.length}.max
+        @pnts.each do |pnt|
+          l,d = @seg.locate_point(pnt)
+          pnt2 = @seg.interpolate_point(l,d)
+          tolerance = [pnt.modulus, seg_max].max * Float::EPSILON * 2
+          assert (pnt2-pnt).length < tolerance, "Point #{pnt} yields #{pnt2} [#{(pnt2-pnt).length}  / #{tolerance}]"
+        end
+      end
+      
+    end
+  end
+  
 end
 
