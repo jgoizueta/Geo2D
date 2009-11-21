@@ -218,11 +218,12 @@ module Geo2D
 
     # Returns the position in the segment (distance from the start node along the line) of the nearest line point
     # to the point (point projected on the line) and the perpendicular separation of the point from the line (the
-    # distance from the point to the line). 
+    # distance from the point to the line, but signed: negative when the point is on the right side of the line.
     # If the last parameter is true, the resulting point is forced to lie in the segment (so the distance along
     # the line is between 0 and the segment's length) and the second result is the distance from the point to the
-    # segment (i.e. to the closest end of the segment if the projected point lies out of the segmen)
-    # The third returned argument is a rotation that must be applied to the perpendicular vector.
+    # segment (i.e. to the closest end of the segment if the projected point lies out of the segment)
+    # The third returned value is a rotation that must be applied to the perpendicular vector; it is nonzero
+    # only when the last parameter is true and the point is closer to a segment end than to any other segment point.
     def locate_point(point, corrected=false)
       point = Geo2D.Vector(point)
       v = point - @start
@@ -250,6 +251,7 @@ module Geo2D
     # Computes the position of a point in the line given the distance along the line from the starting node.
     # If a second parameter is passed it indicates the separation of the computed point in the direction
     # perpendicular to the line; the point is on the left side of the line if the separation is > 0.
+    # The third parameter is a rotation applied to the vector from the line to the point.
     def interpolate_point(parallel_distance, separation=0, rotation=0)
       p = @start + self.direction*parallel_distance
       unless separation==0
@@ -370,9 +372,13 @@ module Geo2D
       locate_point(point, true).first
     end
 
-    # return parallalel distance and separation;
-    # Then parallalel distance is in [0,length] (the point is inside the line)
-    # parallel distance in [0,length] , separation
+    # Return the position of a point in relation to the line: parallalel distance along the line,
+    # separation and rotation of the separation (from the perpendicular.)
+    # Parallalel distance is in [0,length].
+    # If we have l,d,r = line.locate_point(point), then the closest line point to point is:
+    # line.interpolate_point(l) and line.interpolate_point(l,d,r) is point; d.abs is the distance from line to point;
+    # point is on the left of line if d>0; on the right if d<0 and on the line if d==0.
+    # If we want to align a text with the line at point, we would use the angle line.angle_at(l,r)
     def locate_point(point)
       best = nil
 
@@ -395,12 +401,17 @@ module Geo2D
 
     end
 
+    # Compute a point position given the relative position in the line as returned by locate_point().
     def interpolate_point(parallel_distance, separation=0, rotation=0)
       # separation>0 => left side of line in direction of travel
       i, l = segment_position_of(parallel_distance)
       segment(i).interpolate_point(l, separation, rotation)
     end
 
+    # Angle of the line at a point (in radians, from the X axis, counter-clockwise.)
+    # The rotation parameter is added to this angle, if the rotation obtained from locate_point is used,
+    # points external to the line have a natural orientation parallel to the line (than can be use to rotate
+    # texts or symbols to be aligned with the line.)
     def angle_at(parallel_distance, rotation=0)
       i,l = segment_position_of(parallel_distance)
       segment(i).angle + rotation
