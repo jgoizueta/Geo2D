@@ -100,6 +100,11 @@ module Geo2D
       x, y = self.x, self.y
       Vector.new(a11*x + a12*y, a21*x + a22*y)
     end
+    
+    # vector rotation (center at origin); for a general rotation use Geo2D.rotation
+    def rotate(angle)
+      transform(*Geo2D.rotation_transform(angle))
+    end
 
     # Apply arbitrary transformation (passed as a Proc or as a block)
     def apply(prc, &blk)
@@ -200,7 +205,7 @@ module Geo2D
 
     def contains?(point)
       if self.aligned_with?(point)
-        l,d = self.locate_point(point)
+        l,d,r = self.locate_point(point)
         l>=0 && l<=self.length # => d==0
       else
         false
@@ -213,46 +218,56 @@ module Geo2D
 
     # Returns the position in the segment (distance from the start node along the line) of the nearest line point
     # to the point (point projected on the line) and the perpendicular separation of the point from the line (the
-    # distance from the point to the line).
+    # distance from the point to the line). 
     # If the last parameter is true, the resulting point is forced to lie in the segment (so the distance along
     # the line is between 0 and the segment's length) and the second result is the distance from the point to the
     # segment (i.e. to the closest end of the segment if the projected point lies out of the segmen)
+    # The third returned argument is a rotation that must be applied to the perpendicular vector.
     def locate_point(point, corrected=false)
       point = Geo2D.Vector(point)
       v = point - @start
       l = v.dot(direction)
       d = direction.cross_z(v) # == (v-l*direction).length == v.length*Math.sin(v.angle_to(direction))
+      rotation = 0
 
       if corrected
+        # rotation = atan2(-(l.modulo(length))*d.sign, d.abs)        
         if l<0
+          rotation = Math.atan2(d < 0 ? -l : l, d.abs)
           l = 0
-          d = (point-@start).length
-        elsif l>total_l
+          d = d/Math.cos(rotation) # d.sign*(point-@start).length
+        elsif l>self.length
+          l -= self.length
+          rotation = Math.atan2(d < 0 ? -l : l, d.abs)
           l = self.length
-          d = (point-@end).length
+          d = d/Math.cos(rotation) # d = d.sign*(point-@end).length
         end
       end
 
-      [l, d]
+      [l, d, rotation]
     end
 
     # Computes the position of a point in the line given the distance along the line from the starting node.
     # If a second parameter is passed it indicates the separation of the computed point in the direction
     # perpendicular to the line; the point is on the left side of the line if the separation is > 0.
-    def interpolate_point(parallel_distance, separation=0)
+    def interpolate_point(parallel_distance, separation=0, rotation=0)
       p = @start + self.direction*parallel_distance
-      p += direction.ortho*separation unless separation==0
+      unless separation==0
+        d = direction.ortho*separation
+        d = d.rotate(rotation) unless rotation==0
+        p += d
+      end
       p
     end
 
     # Distance from the segment to a point
     def distance_to(point)
-      locate_point(point, true).last
+      locate_point(point, true)[1].abs
     end
 
     # Distance from the line that contains the segment to the point
     def line_distance_to(point)
-      locate_point(point, false).last
+      locate_point(point, false)[1].abs
     end
 
     def length_to(point)
@@ -348,7 +363,7 @@ module Geo2D
     end
 
     def distance_to(point)
-      locate_point(point, true).last
+      locate_point(point, true)[1].abs
     end
 
     def length_to(point)
@@ -356,9 +371,9 @@ module Geo2D
     end
 
     # return parallalel distance and separation;
-    # if corrected, then parallalel distance is in [0,length] (the point is inside the line)
+    # Then parallalel distance is in [0,length] (the point is inside the line)
     # parallel distance in [0,length] , separation
-    def locate_point(point, corrected=false)
+    def locate_point(point)
       best = nil
 
       total_l = 0
@@ -367,67 +382,28 @@ module Geo2D
         seg = segment(i)
         seg_l = seg.length
 
-        l,d = seg.locate_point(point, false)
-        max_i = n_segments-1
+        l,d,rotation = seg.locate_point(point, true)
 
-        if (l>0 || i==0) && (l<=seg_l || i==max_i)
-          if best.nil? || d<best.last
-            best = [total_l+l, d]
-          end
+        if best.nil? || d.abs<best[1].abs
+          best = [total_l+l, d, rotation]
         end
 
         total_l += seg_l
-      end
-
-      if best && corrected
-        l, d = best
-        if l<0
-          l = 0
-          d = (point-points.first).length
-        elsif l>total_l
-          l = total_l
-          d = (point-points.last).length
-        end
-        best = [l, d]
       end
 
       best
 
     end
 
-    def interpolate_point(parallel_distance, separation=0, sweep=nil)
+    def interpolate_point(parallel_distance, separation=0, rotation=0)
       # separation>0 => left side of line in direction of travel
       i, l = segment_position_of(parallel_distance)
-      if sweep && separation!=0
-        sweep = 0.0 unless sweep.kind_of?(Numeric)
-        if i>0 && l<sweep
-          a = 0.5*(segment(i-1).angle+segment(i).angle) + Math::PI/2
-          @vertices[i] + separation*Geo2D.Vector(Math.cos(a), Math.sin(a))
-        elsif i<(n_segments-1) && l>=(segment_length(i)-sweep)
-          a = 0.5*(segment(i).angle+segment(i+1).angle) + Math::PI/2
-          @vertices[i+1] + separation*Geo2D.Vector(Math.cos(a), Math.sin(a))
-        else
-          segment(i).interpolate_point(l, separation)
-        end
-      else
-        segment(i).interpolate_point(l, separation)
-      end
+      segment(i).interpolate_point(l, separation, rotation)
     end
 
-    def angle_at(parallel_distance, sweep=false)
+    def angle_at(parallel_distance, rotation=0)
       i,l = segment_position_of(parallel_distance)
-      if sweep
-        sweep = 0.0 unless sweep.kind_of?(Numeric)
-        if i>0 && l<sweep
-          0.5*(segment(i-1).angle+segment(i).angle)
-        elsif i<(n_segments-1) && l>=(segment_length(i)-sweep)
-          0.5*(segment(i).angle+segment(i+1).angle)
-        else
-          segment(i).angle
-        end
-      else
-         segment(i).angle
-      end
+      segment(i).angle + rotation
     end
 
     # multiply by matrix [[a11, a12], [a21, a22]]
@@ -441,7 +417,7 @@ module Geo2D
     end
 
     def contains?(point)
-      self.locate_point(point, true).last == 0
+      self.locate_point(point)[1] == 0
     end
 
     def bounds
@@ -506,13 +482,17 @@ module Geo2D
     #end
   end
 
+  def rotation_transform(angle)
+    sn = Math.sin(angle)
+    cs = Math.cos(angle)
+    [cs, sn, -sn, cs]
+  end
+
   # Rotation transformation; given the center of rotation (a point, i.e. a Vector) and the angle
   # this returns a procedure that can be used to apply the rotation to points.
   def rotation(center, angle)
     center = Vector(center)
-    sn = Math.sin(angle)
-    cs = Math.cos(angle)
-    lambda{|p| center + (p-center).transform(cs, sn, -sn, cs)}
+    lambda{|p| center + (p-center).rotate(angle)}
   end
 
 end

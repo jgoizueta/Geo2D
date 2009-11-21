@@ -63,8 +63,8 @@ class TestGeo2d < Test::Unit::TestCase
       should  "reference the points in the line consistently" do        
         seg_max = @seg.points.map{|p| p.length}.max
         @pnts.each do |pnt|
-          l,d = @seg.locate_point(pnt)
-          pnt2 = @seg.interpolate_point(l,d)
+          l,d,r = @seg.locate_point(pnt)
+          pnt2 = @seg.interpolate_point(l,d,r)
           tolerance = [pnt.modulus, seg_max].max * Float::EPSILON * 2
           assert (pnt2-pnt).length < tolerance, "Point #{pnt} yields #{pnt2} [#{(pnt2-pnt).length}  / #{tolerance}]"
         end
@@ -88,8 +88,8 @@ class TestGeo2d < Test::Unit::TestCase
       should  "reference the points in the line consistently" do        
         seg_max = @seg.points.map{|p| p.length}.max
         @pnts.each do |pnt|
-          l,d = @seg.locate_point(pnt)
-          pnt2 = @seg.interpolate_point(l,d)
+          l,d,r = @seg.locate_point(pnt)
+          pnt2 = @seg.interpolate_point(l,d,r)
           tolerance = [pnt.modulus, seg_max].max * Float::EPSILON * 2
           assert (pnt2-pnt).length < tolerance, "Point #{pnt} yields #{pnt2} [#{(pnt2-pnt).length}  / #{tolerance}]"
         end
