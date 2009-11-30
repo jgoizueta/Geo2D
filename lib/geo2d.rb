@@ -280,7 +280,7 @@ module Geo2D
     end
 
     def aligned_with?(other)
-      cross_z == 0
+      tolerance.zero?(cross_z)
     end
 
     # multiply by matrix [[a11, a12], [a21, a22]]
