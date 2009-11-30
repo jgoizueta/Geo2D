@@ -116,14 +116,11 @@ module Geo2D
       local_context(*args, &blk)
     elsif args.empty?
       # return the current context
-      # return the current context
-      self._context = self::DefaultContext.dup if _context.nil?
-      _context
+      ctxt = _context
+      self._context = ctxt = self::DefaultContext.dup if ctxt.nil?
+      ctxt
     else
       # change the current context
-      # TODO: consider doing self._context = ... here
-      # so we would have DecNum.context = c that assigns a duplicate of c
-      # and DecNum.context c to set alias c
       self.context = define_context(*args)
     end
   end
@@ -140,16 +137,10 @@ module Geo2D
   def self.local_context(*args)
     begin
       keep = self.context # use this so _context is initialized if necessary
-      self.context = define_context(*args) # this dups the assigned context
-      result = yield _context
+      self.context = define_context(*args) # this dups the assigned context      
+      ctxt = _context
+      result = ctxt.num_context.eval{yield ctxt}
     ensure
-      # TODO: consider the convenience of copying the flags from DecNum.context to keep
-      # This way a local context does not affect the settings of the previous context,
-      # but flags are transferred.
-      # (this could be done always or be controlled by some option)
-      #   keep.flags = DecNum.context.flags
-      # Another alternative to consider: logically or the flags:
-      #   keep.flags ||= DecNum.context.flags # (this requires implementing || in Flags)
       self._context = keep
       result
     end
@@ -159,7 +150,6 @@ module Geo2D
     # This is the thread-local context storage low level interface
     protected
     def _context #:nodoc:
-      # TODO: memoize the variable id
       Thread.current[:Geo2D_context]
     end
     def _context=(c) #:nodoc:
@@ -172,20 +162,16 @@ module Geo2D
     def context
       Geo2D.context
     end
+    
     def Num(*args)
       context.Num(*args)
     end
     
-    # Computes the passed block with the proper numeric context
-    #   compute{self.x+self.y}
-    def compute(&blk)
-      Geo2D.context.num_context.eval(&blk)
+    def math
+      Geo2D.context.num_context
     end
     
-    # like compute, but self points to the context, so context/math functions can be used directly;
-    # self is passed as a parameter to the block in case it is needed:
-    #   math{|this| hypot(this.x, this.y)}    
-    def math(&blk)
+    def math_eval(&blk)
       Geo2D.context.num_context.math(self, &blk)
     end
     
@@ -193,11 +179,6 @@ module Geo2D
       context.tolerance
     end
   end
-
-# Problems Float.context is singleton; cannot dup
-#     compute block cannot access self  . idea: inject variable this=outer self (math should accept paramters to pass to block)
-#  def compute(&blk) Geo2D.context.num_context.math(self, &blk); end
-#  ... *compute{\this| [this.x*2, this.y*2]}
   
   # Planar vectors; used also to represent points of the plane
   class Vector
@@ -212,7 +193,8 @@ module Geo2D
     attr_accessor :x, :y
 
     def modulus
-      math{|this| hypot(this.x, this.y)}
+      # math_eval{|this| hypot(this.x, this.y)}
+      math.hypot(self.x, self.y)
     end
 
     def length
@@ -220,43 +202,42 @@ module Geo2D
     end
 
     def argument
-      math{|this| atan2(this.y, this.x)}
+      math.atan2(self.y, self.x)
     end
 
     def +(other)
       other = Geo2D.Vector(other)
-      # Vector.new(*compute{|this| [this.x+other.x, this.y+other.y]})
-      Vector.new(*compute{[self.x+other.x, self.y+other.y]})
+      Vector.new(self.x+other.x, self.y+other.y)
     end
 
     def -(other)
       other = Geo2D.Vector(other)
-      Vector.new(*compute{[self.x-other.x, self.y-other.y]})
+      Vector.new(self.x-other.x, self.y-other.y)
     end
 
     def *(scalar_or_vector)
       if Numeric===scalar_or_vector
         # scalar product
-        Vector.new(*math{|this| [scalar_or_vector*this.x, scalar_or_vector*this.y]})
+        Vector.new(scalar_or_vector*self.x, scalar_or_vector*self.y)
       else
         # dot product
         other = Geo2D.Vector(scalar_or_vector)
-        compute(){self.x*other.x + self.y*other.y}
+        self.x*other.x + self.y*other.y
       end
     end
 
     def /(scalar)
       # self * 1.0/scalar
-      Vector.new(*compute{[self.x/scalar, self.y/scalar]})
+      Vector.new(self.x/scalar, self.y/scalar)
     end
 
     # z coordinate of cross product
     def cross_z(other)
-      compute{self.x*other.y - other.x*self.y}
+      self.x*other.y - other.x*self.y
     end
 
     def dot(other)
-      compute{self.x*other.x + self.y*other.y}
+      self.x*other.x + self.y*other.y
     end
 
     def ==(other)
@@ -287,18 +268,18 @@ module Geo2D
 
     # angle between two vectors
     def angle_to(other)
-      math{|this| atan2(this.cross_z(other), this.dot(other))}
+      math.atan2(self.cross_z(other), self.dot(other))
     end
 
     def aligned_with?(other)
-      cross_z == 0
+      tolerance.zero?(cross_z)
     end
 
     # multiply by matrix [[a11, a12], [a21, a22]]
     def transform(*t)
       a11, a12, a21, a22 = t.flatten.map{|v| Num(v)}
       x, y = self.x, self.y
-      Vector.new(*compute{[a11*x + a12*y, a21*x + a22*y]})
+      Vector.new(a11*x + a12*y, a21*x + a22*y)
     end
     
     # vector rotation (center at origin); for a general rotation use Geo2D.rotation
@@ -434,18 +415,17 @@ module Geo2D
       rotation = 0
 
       if corrected
-        math do |this|
-          # rotation = atan2(-(l.modulo(length))*d.sign, d.abs)        
-          if l<0
-            rotation = atan2(d < 0 ? -l : l, d.abs)
-            l = 0
-            d = d/cos(rotation) # d.sign*(point-@start).length
-          elsif l>this.length
-            l -= this.length
-            rotation =atan2(d < 0 ? -l : l, d.abs)
-            l = this.length
-            d = d/cos(rotation) # d = d.sign*(point-@end).length
-          end
+        mth = math
+        # rotation = atan2(-(l.modulo(length))*d.sign, d.abs)        
+        if l<0
+          rotation = mth.atan2(d < 0 ? -l : l, d.abs)
+          l = 0
+          d = d/mth.cos(rotation) # d.sign*(point-@start).length
+        elsif l>self.length
+          l -= self.length
+          rotation = mth.atan2(d < 0 ? -l : l, d.abs)
+          l = self.length
+          d = d/mth.cos(rotation) # d = d.sign*(point-@end).length
         end
       end
 
@@ -588,21 +568,19 @@ module Geo2D
     def locate_point(point)
       best = nil
 
-      compute do
-        total_l = Num(0)
-        (0...n_segments).each do |i|
+      total_l = Num(0)
+      (0...n_segments).each do |i|
 
-          seg = segment(i)
-          seg_l = seg.length
+        seg = segment(i)
+        seg_l = seg.length
 
-          l,d,rotation = seg.locate_point(point, true)
+        l,d,rotation = seg.locate_point(point, true)
 
-          if best.nil? || d.abs<best[1].abs
-            best = [total_l+l, d, rotation]
-          end
-
-          total_l += seg_l
+        if best.nil? || d.abs<best[1].abs
+          best = [total_l+l, d, rotation]
         end
+
+        total_l += seg_l
       end
 
       best
@@ -621,7 +599,7 @@ module Geo2D
     # texts or symbols to be aligned with the line.)
     def angle_at(parallel_distance, rotation=0)
       i,l = segment_position_of(parallel_distance)
-      compute{segment(i).angle + rotation}
+      segment(i).angle + rotation
     end
 
     # multiply by matrix [[a11, a12], [a21, a22]]
@@ -654,10 +632,8 @@ module Geo2D
 
     def total_length
       l = Num(0)
-      compute do
-        (0...n_segments).each do |i|
-          l += segment_length(i)
-        end
+      (0...n_segments).each do |i|
+        l += segment_length(i)
       end
       l
     end
@@ -666,25 +642,21 @@ module Geo2D
     def segment_position_of(l)
       i = 0
       max_i = n_segments-1
-      compute do
-        l = Num(l)
-        while l>(s=segment_length(i)) && i<max_i
-          l -= s
-          i += 1
-        end
+      l = Num(l)
+      while l>(s=segment_length(i)) && i<max_i
+        l -= s
+        i += 1
       end
       return i, l
     end
 
     # compute parallel distance of position in segment TODO: rename
     def distance_along_line_of(segment_i, distance_in_segment)
-      compute do
-        l = Num(0)
-        (0...segment_i).each do |i|
-          l += segment_length(i)
-        end
-        l + distance_in_segment
+      l = Num(0)
+      (0...segment_i).each do |i|
+        l += segment_length(i)
       end
+      l + distance_in_segment
     end
 
   end # LineString
@@ -708,18 +680,17 @@ module Geo2D
   end
 
   def rotation_transform(angle)
-    Geo2D.context.num_context.math do
-      sn = sin(angle)
-      cs = cos(angle)
-      [cs, sn, -sn, cs]
-    end
+    math = Geo2D.context.num_context
+    sn = math.sin(angle)
+    cs = math.cos(angle)
+    [cs, sn, -sn, cs]
   end
 
   # Rotation transformation; given the center of rotation (a point, i.e. a Vector) and the angle
   # this returns a procedure that can be used to apply the rotation to points.
   def rotation(center, angle)
     center = Vector(center)
-    lambda{|p| Geo2D.context.num_context.eval{center + (p-center).rotate(angle)}}
+    lambda{|p| center + (p-center).rotate(angle)}
   end
 
 end
