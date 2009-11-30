@@ -419,7 +419,7 @@ module Geo2D
 
     # multiply by matrix [[a11, a12], [a21, a22]]
     def transform(*t)
-      LineString.new(*@vertices.map{|v| v.transforme(*t)})
+      LineString.new(*@vertices.map{|v| v.transform(*t)})
     end
 
     def apply(prc=nil, &blk)
