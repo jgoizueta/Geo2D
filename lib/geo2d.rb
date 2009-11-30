@@ -160,10 +160,10 @@ module Geo2D
     protected
     def _context #:nodoc:
       # TODO: memoize the variable id
-      Thread.current["Geo2D.context"]
+      Thread.current[:Geo2D_context]
     end
     def _context=(c) #:nodoc:
-      Thread.current["Geo2D.context"] = c
+      Thread.current[:Geo2D_context] = c
     end
   end
   
