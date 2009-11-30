@@ -163,6 +163,10 @@ module Geo2D
       Geo2D.context
     end
     
+    def num_class
+      context.num_class
+    end
+    
     def Num(*args)
       context.Num(*args)
     end
@@ -324,11 +328,16 @@ module Geo2D
       x, y = args
     when 1
       arg = args.first
-      if arg.is_a?(Vector)
+      case arg
+      when Vector
         return arg
-      elsif arg.kind_of?(Array) && arg.size==2
-        x, y = arg
-      elsif arg.kind_of?(Hash)
+      when Array
+        if arg.size == 2
+          x, y = arg
+        else
+          raise ArgumentError,"Invalid number of parameters for a point"
+        end
+      when Hash
         if arg.has_key?(:x) && arg.has_key?(:y)
           x, y = arg[:x], arg[:y]
         end
@@ -691,6 +700,10 @@ module Geo2D
   def rotation(center, angle)
     center = Vector(center)
     lambda{|p| center + (p-center).rotate(angle)}
+  end
+  
+  def self.Num(*args)
+    self.context.num_context.Num(*args)
   end
 
 end
