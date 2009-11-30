@@ -8,7 +8,7 @@ module Geo2D
     def initialize(*options)
       
       @num_class = Float
-      @tolerance = Flt::Tolerance(2, :big_epsilon)
+      @tolerance = Flt::Tolerance(2, :epsilon)
 
       options.dup.each do |option|
         case option
