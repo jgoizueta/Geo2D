@@ -107,23 +107,20 @@ module Geo2D
   private :define_context
 
   # The current context (thread-local).
-  # If arguments are passed they are interpreted as in Num.define_context() to change
+  # If arguments are passed they are interpreted as in Geo2D.define_context() to change
   # the current context.
-  # If a block is given, this method is a synonym for Num.local_context().
+  # If a block is given, this method is a synonym for Geo2D.local_context().
   def self.context(*args, &blk)
     if blk
       # setup a local context
       local_context(*args, &blk)
     elsif args.empty?
       # return the current context
-      # return the current context
-      self._context = self::DefaultContext.dup if _context.nil?
-      _context
+      ctxt = _context
+      self._context = ctxt = self::DefaultContext.dup if ctxt.nil?
+      ctxt
     else
       # change the current context
-      # TODO: consider doing self._context = ... here
-      # so we would have DecNum.context = c that assigns a duplicate of c
-      # and DecNum.context c to set alias c
       self.context = define_context(*args)
     end
   end
@@ -143,13 +140,6 @@ module Geo2D
       self.context = define_context(*args) # this dups the assigned context
       result = yield _context
     ensure
-      # TODO: consider the convenience of copying the flags from DecNum.context to keep
-      # This way a local context does not affect the settings of the previous context,
-      # but flags are transferred.
-      # (this could be done always or be controlled by some option)
-      #   keep.flags = DecNum.context.flags
-      # Another alternative to consider: logically or the flags:
-      #   keep.flags ||= DecNum.context.flags # (this requires implementing || in Flags)
       self._context = keep
       result
     end
@@ -159,7 +149,6 @@ module Geo2D
     # This is the thread-local context storage low level interface
     protected
     def _context #:nodoc:
-      # TODO: memoize the variable id
       Thread.current[:Geo2D_context]
     end
     def _context=(c) #:nodoc:
