@@ -10,6 +10,7 @@ begin
     gem.email = "jgoizueta@gmail.com"
     gem.homepage = "http://github.com/jgoizueta/Geo2D"
     gem.authors = ["Javier Goizueta"]
+    gem.add_dependency "flt", ">= 1.1.1"
     gem.add_development_dependency "thoughtbot-shoulda", ">= 0"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
