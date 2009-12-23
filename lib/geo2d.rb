@@ -426,12 +426,12 @@ module Geo2D
         math do |this|
           # rotation = atan2(-(l.modulo(length))*d.sign, d.abs)        
           if l<0
-            rotation = atan2(d < 0 ? -l : l, d.abs)
+            rotation = atan2(d < 0 ? l : -l, d.abs)
             l = 0
             d = d/cos(rotation) # d.sign*(point-@start).length
           elsif l>this.length
             l -= this.length
-            rotation =atan2(d < 0 ? -l : l, d.abs)
+            rotation =atan2(d < 0 ? l : -l, d.abs)
             l = this.length
             d = d/cos(rotation) # d = d.sign*(point-@end).length
           end
@@ -700,7 +700,7 @@ module Geo2D
     Geo2D.context.num_context.math do
       sn = sin(angle)
       cs = cos(angle)
-      [cs, sn, -sn, cs]
+      [cs, -sn, sn, cs]
     end
   end
 
