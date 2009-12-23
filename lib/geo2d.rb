@@ -320,6 +320,14 @@ module Geo2D
       end
 
     end
+    
+    def <<(p)
+      p = Geo2D.Point(*p)
+      if @vertices.last != p
+        @vertices << p
+        @length = nil
+      end
+    end
 
     def start
       @vertices.first
