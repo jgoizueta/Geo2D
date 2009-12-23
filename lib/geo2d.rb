@@ -124,14 +124,14 @@ module Geo2D
       end
     end
 
-  end
-
-  def distance_to(other)
-    if other.kind_of?(Vector)
-      (other-self).modulus
-    else
-      other.distance_to?(self)
+    def distance_to(other)
+      if other.kind_of?(Vector)
+        (other-self).modulus
+      else
+        other.distance_to?(self)
+      end
     end
+    
   end
 
   module_function
