@@ -234,12 +234,12 @@ module Geo2D
       if corrected
         # rotation = atan2(-(l.modulo(length))*d.sign, d.abs)        
         if l<0
-          rotation = Math.atan2(d < 0 ? -l : l, d.abs)
+          rotation = Math.atan2(d < 0 ? l : -l, d.abs)
           l = 0
           d = d/Math.cos(rotation) # d.sign*(point-@start).length
         elsif l>self.length
           l -= self.length
-          rotation = Math.atan2(d < 0 ? -l : l, d.abs)
+          rotation = Math.atan2(d < 0 ? l : -l, d.abs)
           l = self.length
           d = d/Math.cos(rotation) # d = d.sign*(point-@end).length
         end
@@ -504,7 +504,7 @@ module Geo2D
   def rotation_transform(angle)
     sn = Math.sin(angle)
     cs = Math.cos(angle)
-    [cs, sn, -sn, cs]
+    [cs, -sn, sn, cs]
   end
 
   # Rotation transformation; given the center of rotation (a point, i.e. a Vector) and the angle
